@@ -7,22 +7,38 @@ func main() {
 	var x int
 	var y int
 
-	fmt.Print("Введите количество строк: ")
-	fmt.Scanln(&x)
 	fmt.Print("Введите количество столбцов: ")
-	fmt.Scanln(&y)
+	fmt.Scan(&x)
+	fmt.Print("Введите количество строк: ")
+	fmt.Scan(&y)
 
-	z := y / 2
+	j := 0
+	for j < y {
 
-	for i := 0; i < x; i++ {
-		for q := 0; q < z; q++ {
-			if i%2 == 0 {
-				fmt.Print(string('#') + string(' '))
-			} else {
-				fmt.Print(string(' ') + string('#'))
-
+		if j%2 == 0 {
+			i := 0
+			for i < x {
+				if i%2 == 0 {
+					fmt.Print(string('#'))
+				} else {
+					fmt.Print(string(' '))
+				}
+				i++
+			}
+		} else {
+			i := 0
+			for i < x {
+				if i%2 == 0 {
+					fmt.Print(string(' '))
+				} else {
+					fmt.Print(string('#'))
+				}
+				i++
 			}
 		}
 		fmt.Println()
+
+		j++
 	}
+
 }
