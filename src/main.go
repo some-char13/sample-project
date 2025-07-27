@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"sample_project/internal/check"
-	"sample_project/internal/service"
+	"sample_project/internal/model/check"
+	"sample_project/internal/model/service"
 )
 
 func main() {
