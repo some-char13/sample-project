@@ -19,38 +19,38 @@ func NewService(name, new_url string, interval int) *Service {
 	}
 }
 
-func (s *Service) ID() int {
+func (s *Service) GetServiceID() int {
 	return s.id
 }
 
-func (s *Service) Name() string {
+func (s *Service) GetServiceName() string {
 	return s.name
 }
 
-func (s *Service) URL() string {
+func (s *Service) GetServiceURL() string {
 	return s.url
 }
 
-func (s *Service) GetInterval() int {
+func (s *Service) GetServiceInterval() int {
 	return s.interval
 }
 
-func (s *Service) CreatedAt() time.Time {
+func (s *Service) ServiceCreatedAt() time.Time {
 	return s.created
 }
 
-func (s *Service) SetID(id int) {
+func (s *Service) SetServiceID(id int) {
 	s.id = id
 }
 
-func (s *Service) SetName(name string) {
+func (s *Service) SetServiceName(name string) {
 	s.name = name
 }
 
-func (s *Service) SetURL(new_url string) {
+func (s *Service) SetServiceURL(new_url string) {
 	s.url = new_url
 }
 
-func (s *Service) SetInterval(seconds int) {
+func (s *Service) SetServiceInterval(seconds int) {
 	s.interval = seconds
 }

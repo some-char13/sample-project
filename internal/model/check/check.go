@@ -19,10 +19,10 @@ func NewResult(serviceId, responseCode, respDuration int) *Result {
 	}
 }
 
-func (r *Result) GetID() int {
+func (r *Result) GetResultID() int {
 	return r.id
 }
-func (r *Result) GetServiceId() int {
+func (r *Result) GetServiceID() int {
 	return r.serviceId
 }
 func (r *Result) GetResponseCode() int {
