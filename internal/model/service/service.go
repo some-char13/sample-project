@@ -1,6 +1,9 @@
 package service
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type Service struct {
 	id       int
@@ -17,6 +20,15 @@ func NewService(name, new_url string, interval int) *Service {
 		interval: interval,
 		created:  time.Now().UTC(),
 	}
+}
+
+func (s *Service) String() string {
+	if s == nil {
+		return "nil"
+	}
+	return fmt.Sprintf(
+		"id: %d, name: %s, url: %s, interval: %d, created: %v", s.id, s.name, s.url, s.interval, s.created,
+	)
 }
 
 func (s *Service) GetServiceID() int {

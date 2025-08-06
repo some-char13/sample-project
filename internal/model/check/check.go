@@ -1,6 +1,9 @@
 package check
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type Result struct {
 	id           int
@@ -17,6 +20,10 @@ func NewResult(serviceId, responseCode, respDuration int) *Result {
 		timeChecked:  time.Now().UTC(),
 		respDuration: respDuration,
 	}
+}
+
+func (c *Result) String() string {
+	return fmt.Sprintf("id: %d, serviceId: %d, responseCode: %d, timeChecked: %s, respDuration: %v", c.id, c.serviceId, c.responseCode, c.timeChecked, c.respDuration)
 }
 
 func (r *Result) GetResultID() int {
