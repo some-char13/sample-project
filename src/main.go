@@ -17,8 +17,8 @@ func main() {
 
 	commonCh := make(chan repository.SrvID)
 
-	go NewItem.GenerateItems(commonCh)
-	go repository.LogItems()
+	go NewItem.ProcessItems(commonCh)
+	go NewItem.LogItems()
 
 	for range ticker.C {
 
