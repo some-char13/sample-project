@@ -14,8 +14,12 @@ import (
 )
 
 func main() {
+
+	repository.LoadServicesFromFile("services.json")
+	repository.LoadResultsFromFile("results.json")
+
 	ctx, cancel := context.WithCancel(context.Background())
-	defer ctx.Done()
+	defer cancel()
 
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
@@ -23,7 +27,7 @@ func main() {
 	startSrvID := 1
 	startResID := 1
 
-	commonCh := make(chan repository.SrvID)
+	commonCh := make(chan any)
 
 	go NewItem.ProcessItems(commonCh, ctx)
 	go NewItem.LogItems(ctx)
@@ -36,10 +40,10 @@ func main() {
 			return
 		case <-ticker.C:
 			s := service.NewService("озон", "https://ozon.ru", 60)
-			s.SetServiceID(startSrvID)
+			s.Id = startSrvID
 
 			c := check.NewResult(startSrvID, 200, 32)
-			c.SetID(startResID)
+			c.Id = startResID
 
 			select {
 			case commonCh <- s:
@@ -56,18 +60,13 @@ func main() {
 			startSrvID++
 			startResID++
 		}
-
 	}
 }
 
 func Shutdown(cancel context.CancelFunc) {
 	sigs := make(chan os.Signal, 1)
-
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
 	sig := <-sigs
-
 	fmt.Println("Получен сигнал", sig)
 	cancel()
-
 }
