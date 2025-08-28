@@ -18,6 +18,8 @@ func main() {
 	repository.LoadServicesFromFile("services.json")
 	repository.LoadResultsFromFile("results.json")
 
+	NewItem.SetCount(len(repository.GetServices()), len(repository.GetResults()))
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

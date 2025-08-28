@@ -22,6 +22,11 @@ func ProcessItems(c chan any, ctx context.Context) {
 var lenSrv int
 var lenRes int
 
+func SetCount(serviceCnt, resultCnt int) {
+	lenSrv = serviceCnt
+	lenRes = resultCnt
+}
+
 func LogItems(ctx context.Context) {
 	logTicker := time.NewTicker(200 * time.Millisecond)
 	defer logTicker.Stop()
