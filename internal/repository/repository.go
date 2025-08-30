@@ -1,15 +1,14 @@
 package repository
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
+	"os"
 	"sample_project/internal/model/check"
 	"sample_project/internal/model/service"
 	"sync"
 )
-
-type SrvID interface {
-	GetServiceID() int
-}
 
 var new_srv []*service.Service
 var new_res []*check.Result
@@ -17,18 +16,20 @@ var new_res []*check.Result
 var muteSrv sync.RWMutex
 var muteRes sync.RWMutex
 
-func AddItem(item SrvID) {
+func AddItem(item any) {
 	switch v := item.(type) {
 	case *service.Service:
 		muteSrv.Lock()
 		new_srv = append(new_srv, v)
 		muteSrv.Unlock()
+		SaveServicesToFile("services.json")
 	case *check.Result:
 		muteRes.Lock()
 		new_res = append(new_res, v)
 		muteRes.Unlock()
+		SaveResultsToFile("results.json")
 	default:
-		fmt.Printf("Unknown type: %T", item)
+		fmt.Printf("Unknown type: %T\n", item)
 	}
 }
 
@@ -46,34 +47,118 @@ func GetResults() []*check.Result {
 	return sliceRes
 }
 
-// func LogItems() {
-// 	var len_srv int
-// 	var len_res int
+func SaveServicesToFile(path string) {
+	muteSrv.RLock()
+	file, err := os.Create(path)
+	if err != nil {
+		fmt.Println("Ошибка открытия файла")
+	}
 
-// 	logTicker := time.NewTicker(200 * time.Millisecond)
-// 	defer logTicker.Stop()
-// 	for range logTicker.C {
+	jsonStr, err := json.MarshalIndent(new_srv, "", "   ")
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		file.Write(jsonStr)
+		file.Close()
+	}
 
-// 		muteSrv.RLock()
-// 		if len_srv < len(new_srv) {
-// 			new_srv_len := len(new_srv)
-// 			print_this := new_srv[len_srv:new_srv_len]
-// 			for _, item := range print_this {
-// 				fmt.Println(item)
-// 			}
-// 		}
-// 		len_srv = len(new_srv)
-// 		muteSrv.RUnlock()
+	muteSrv.RUnlock()
+}
 
-// 		muteRes.RLock()
-// 		if len_res < len(new_res) {
-// 			new_res_len := len(new_res)
-// 			print_this := new_res[len_res:new_res_len]
-// 			for _, item := range print_this {
-// 				fmt.Println(item)
-// 			}
-// 		}
-// 		len_res = len(new_res)
-// 		muteRes.RUnlock()
+func SaveResultsToFile(path string) {
+	muteRes.RLock()
+	file, err := os.Create(path)
+	if err != nil {
+		fmt.Println("Ошибка открытия файла")
+	}
+
+	jsonStr, err := json.MarshalIndent(new_res, "", "   ")
+	if err != nil {
+		log.Fatal(err)
+	} else {
+		file.Write(jsonStr)
+		file.Close()
+	}
+	muteRes.RUnlock()
+}
+
+func LoadServicesFromFile(path string) error {
+	_, err := os.OpenFile(path, os.O_RDWR, 0644)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	muteSrv.Lock()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var load []*service.Service
+	if err := json.Unmarshal(data, &load); err != nil {
+		fmt.Println("Ошибка обработки JSON:", err)
+	}
+
+	new_srv = load
+	muteSrv.Unlock()
+
+	return nil
+}
+
+func LoadResultsFromFile(path string) error {
+	_, err := os.OpenFile(path, os.O_RDWR, 0644)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	muteRes.Lock()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var loaded []*check.Result
+	if err := json.Unmarshal(data, &loaded); err != nil {
+		fmt.Println("Ошибка обработки JSON:", err)
+	}
+
+	new_res = loaded
+	muteRes.Unlock()
+
+	return nil
+}
+
+// type SrvID interface {
+// 	GetServiceID() int
+// }
+
+// var new_srv []*service.Service
+// var new_res []*check.Result
+
+// var muteSrv sync.RWMutex
+// var muteRes sync.RWMutex
+
+// func AddItem(item SrvID) {
+// 	switch v := item.(type) {
+// 	case *service.Service:
+// 		muteSrv.Lock()
+// 		new_srv = append(new_srv, v)
+// 		muteSrv.Unlock()
+// 	case *check.Result:
+// 		muteRes.Lock()
+// 		new_res = append(new_res, v)
+// 		muteRes.Unlock()
+// 	default:
+// 		fmt.Printf("Unknown type: %T", item)
 // 	}
+// }
+
+// func GetServices() []*service.Service {
+// 	muteSrv.RLock()
+// 	sliceSrv := append([]*service.Service(nil), new_srv...)
+// 	muteSrv.RUnlock()
+// 	return sliceSrv
+// }
+
+// func GetResults() []*check.Result {
+// 	muteRes.RLock()
+// 	sliceRes := append([]*check.Result(nil), new_res...)
+// 	muteRes.RUnlock()
+// 	return sliceRes
 // }
