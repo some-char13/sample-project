@@ -5,6 +5,22 @@ import (
 	"time"
 )
 
+// type Service struct {
+// 	Id       int       `json:"id", required`
+// 	Name     string    `json:"name"`
+// 	Url      string    `json:"url"`
+// 	Interval int       `json:"interval"`
+// 	Created  time.Time `json:"created"`
+// }
+
+// type Service struct {
+// 	Id       int       `json:"id" validate:"required"`
+// 	Name     string    `json:"name" validate:"required,min=3"`
+// 	Url      string    `json:"url" validate:"required"`
+// 	Interval int       `json:"interval" validate:"required"`
+// 	Created  time.Time `json:"created"`
+// }
+
 type Service struct {
 	Id       int       `json:"id" binding:"required"`
 	Name     string    `json:"name" binding:"required,min=3"`
@@ -36,7 +52,10 @@ func (s *Service) UnformString() string {
 	if s == nil {
 		return "nil"
 	}
-
+	// return fmt.Sprintf("%d %s %s %d %s",
+	// 	s.Id, s.Name, s.Url, s.Interval, s.Created)
+	// return fmt.Sprint(
+	// 	s.Id, s.Name, s.Url, s.Interval, s.Created)
 	return fmt.Sprintf("%d,%s,%s,%d,%s",
 		s.Id, s.Name, s.Url, s.Interval, s.Created)
 }
