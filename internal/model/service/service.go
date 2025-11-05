@@ -13,6 +13,13 @@ type Service struct {
 	Created  time.Time `json:"created"`
 }
 
+type ServiceRequest struct {
+	Id       int    `json:"id" binding:"required"`
+	Name     string `json:"name" binding:"required,min=3"`
+	Url      string `json:"url" binding:"required"`
+	Interval int    `json:"interval" binding:"required"`
+}
+
 func NewService(id int, name, url string, interval int) *Service {
 	return &Service{
 		Id:       id,
