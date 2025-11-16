@@ -8,10 +8,16 @@ import (
 	"os"
 	"os/signal"
 	Item "sample_project/internal/handler"
+	MW "sample_project/internal/middleware"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	_ "sample_project/docs"
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 type App struct {
@@ -22,24 +28,29 @@ type App struct {
 func New() *App {
 	router := gin.Default()
 
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	api := router.Group("/api")
+
+	//api.POST("/create_user", Item.New().Register())
+	api.POST("/sign_in", Item.SignIn())
 
 	service := api.Group("/service")
 	{
-		service.POST("/item", Item.CreateService)
+		service.POST("/item", MW.CheckAuth(), Item.CreateService)
 		service.GET("/items", Item.GetService)
 		service.GET("/item/:id", Item.SearchServiceId)
-		service.PUT("/item/:id", Item.ChangeService)
-		service.DELETE("/item/:id", Item.DeleteService)
+		service.PUT("/item/:id", MW.CheckAuth(), Item.ChangeService)
+		service.DELETE("/item/:id", MW.CheckAuth(), Item.DeleteService)
 	}
 
 	result := api.Group("/result")
 	{
-		result.POST("/item", Item.CreateResult)
+		result.POST("/item", MW.CheckAuth(), Item.CreateResult)
 		result.GET("/items", Item.GetResult)
 		result.GET("/item/:id", Item.SearchResultId)
-		result.PUT("/item/:id", Item.ChangeResult)
-		result.DELETE("/item/:id", Item.DeleteResult)
+		result.PUT("/item/:id", MW.CheckAuth(), Item.ChangeResult)
+		result.DELETE("/item/:id", MW.CheckAuth(), Item.DeleteResult)
 	}
 
 	return &App{

@@ -13,6 +13,13 @@ type Result struct {
 	RespDuration int       `json:"resp_duration" binding:"required"`
 }
 
+type ResultRequest struct {
+	Id           int `json:"id" binding:"required"`
+	ServiceId    int `json:"service_id" binding:"required"`
+	ResponseCode int `json:"resp_code" binding:"required"`
+	RespDuration int `json:"resp_duration" binding:"required"`
+}
+
 func NewResult(id, serviceId, responseCode, respDuration int) *Result {
 	return &Result{
 		Id:           id,
