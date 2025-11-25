@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	Jwt "sample_project/pkg/jwt"
+	Jwt "sample_project/internal/pkg/jwt"
 )
 
 func CheckAuth() gin.HandlerFunc {
@@ -15,7 +15,6 @@ func CheckAuth() gin.HandlerFunc {
 		if tokenString == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"message": "No token provided"})
 			c.Abort()
-
 			return
 		}
 
@@ -25,12 +24,10 @@ func CheckAuth() gin.HandlerFunc {
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"message": err.Error()})
 			c.Abort()
-
 			return
 		}
 
 		c.Set("username", claims.Username)
-
 		c.Next()
 	}
 }

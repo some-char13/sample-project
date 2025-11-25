@@ -1,0 +1,300 @@
+definitions:
+  check.Result:
+    properties:
+      id:
+        type: integer
+      resp_code:
+        type: integer
+      resp_duration:
+        type: integer
+      service_id:
+        type: integer
+      time_checked:
+        type: string
+    required:
+    - id
+    - resp_code
+    - resp_duration
+    - service_id
+    type: object
+  check.ResultRequest:
+    properties:
+      last_check:
+        type: string
+      resp_code:
+        type: integer
+      resp_duration:
+        type: integer
+      service_id:
+        type: integer
+    required:
+    - resp_code
+    - resp_duration
+    - service_id
+    type: object
+  register.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  sample_project_internal_model_service.Service:
+    properties:
+      created:
+        type: string
+      id:
+        type: integer
+      interval:
+        minimum: 10
+        type: integer
+      name:
+        minLength: 3
+        type: string
+      url:
+        type: string
+    required:
+    - interval
+    - name
+    - url
+    type: object
+  service.ServiceRequest:
+    properties:
+      interval:
+        minimum: 10
+        type: integer
+      name:
+        minLength: 3
+        type: string
+      url:
+        type: string
+    required:
+    - interval
+    - name
+    - url
+    type: object
+  service.ServiceStatus:
+    properties:
+      last_check:
+        allOf:
+        - $ref: '#/definitions/check.ResultRequest'
+        description: Теперь используем check.Result
+      service:
+        $ref: '#/definitions/sample_project_internal_model_service.Service'
+    type: object
+info:
+  contact: {}
+paths:
+  /api/services:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/sample_project_internal_model_service.Service'
+            type: array
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Получение списка сервисов
+      tags:
+      - services
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные сервиса
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/service.ServiceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/sample_project_internal_model_service.Service'
+        "400":
+          description: Invalid request data
+          schema:
+            type: string
+        "409":
+          description: Service with this name already exists
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Создание сервиса
+      tags:
+      - services
+  /api/services/{id}:
+    delete:
+      parameters:
+      - description: ID сервиса
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid service ID
+          schema:
+            type: string
+        "404":
+          description: Service not found
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Удаление сервиса
+      tags:
+      - services
+  /api/services/{id}/results:
+    get:
+      parameters:
+      - description: ID сервиса
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Лимит результатов (по умолчанию 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/check.Result'
+            type: array
+        "400":
+          description: Invalid service ID
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Получение истории проверок
+      tags:
+      - services
+  /api/services/{id}/results/filter:
+    get:
+      parameters:
+      - description: ID сервиса
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Список кодов ответов через запятую
+        in: query
+        name: respCodeList
+        required: true
+        type: string
+      - description: Лимит результатов (по умолчанию 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/check.Result'
+            type: array
+        "400":
+          description: Invalid parameters
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Получение истории проверок по статусу
+      tags:
+      - services
+  /api/services/status:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/service.ServiceStatus'
+            type: array
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Получение статуса всех сервисов
+      tags:
+      - services
+  /api/sign_in:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для входа
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/register.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "401":
+          description: Invalid credentials
+          schema:
+            type: string
+      summary: Аутентификация
+      tags:
+      - auth
+  /health:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Проверка здоровья
+      tags:
+      - health
+swagger: "2.0"
