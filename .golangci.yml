@@ -2,6 +2,40 @@ run:
   tests: true
 
 linters-settings:
+  depguard:
+    rules:
+      main:
+        list-type: original
+        allow:
+          - os
+          - time
+          - errors
+          - regexp
+          - context
+          - database/sql
+          - fmt
+          - log
+          - net/http
+          - strconv
+          - strings
+          - os/signal
+          - syscall
+          - path/filepath
+          - runtime
+          - testing
+          - sync
+          - github.com/gin-gonic/gin
+          - github.com/spf13/cobra
+          - github.com/dgrijalva/jwt-go
+          - github.com/pressly/goose/v3
+          - github.com/jackc/pgx/v4/stdlib
+          - github.com/swaggo/gin-swagger
+          - github.com/swaggo/files
+          - github.com/stretchr/testify
+          - github.com/testcontainers/testcontainers-go
+          - sample_project/
+  godot:
+    period: false
   funlen:
     lines: 150
     statements: 80

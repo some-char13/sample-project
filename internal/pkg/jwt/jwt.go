@@ -2,11 +2,11 @@ package jwt
 
 import (
 	"errors"
-	"sample_project/internal/conf"
-	"sample_project/internal/model/register"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"sample_project/internal/conf"
+	"sample_project/internal/model/register"
 )
 
 var (

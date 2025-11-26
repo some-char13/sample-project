@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
+	// needed for db connect
+	_ "github.com/jackc/pgx/v4/stdlib"
 	"sample_project/internal/model/check"
 	"sample_project/internal/model/service"
-
-	_ "github.com/jackc/pgx/v4/stdlib"
 )
 
 type PostgresRepository struct {
@@ -45,7 +46,7 @@ func (r *PostgresRepository) AddService(ctx context.Context, s *service.Service)
 	defer tx.Rollback()
 
 	query := `INSERT INTO services (name, url, interval_seconds) VALUES ($1, $2, $3) RETURNING id, created_at`
-	if err := tx.QueryRowContext(ctx, query, s.Name, s.Url, s.Interval).Scan(&s.Id, &s.Created); err != nil {
+	if err := tx.QueryRowContext(ctx, query, s.Name, s.URL, s.Interval).Scan(&s.ID, &s.Created); err != nil {
 		return nil, err
 	}
 
@@ -54,7 +55,6 @@ func (r *PostgresRepository) AddService(ctx context.Context, s *service.Service)
 	}
 
 	return s, nil
-
 }
 
 func (r *PostgresRepository) GetServices(ctx context.Context) ([]*service.Service, error) {
@@ -72,10 +72,14 @@ func (r *PostgresRepository) GetServices(ctx context.Context) ([]*service.Servic
 	}
 	defer rows.Close()
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	var services []*service.Service
 	for rows.Next() {
 		var s service.Service
-		err := rows.Scan(&s.Id, &s.Name, &s.Url, &s.Interval, &s.Created)
+		err := rows.Scan(&s.ID, &s.Name, &s.URL, &s.Interval, &s.Created)
 		if err != nil {
 			return nil, err
 		}
@@ -99,9 +103,12 @@ func (r *PostgresRepository) GetServiceByID(ctx context.Context, id int) (*servi
 
 	query := `SELECT id, name, url, interval_seconds, created_at FROM services WHERE id = $1`
 	var s service.Service
-	err = tx.QueryRowContext(ctx, query, id).Scan(&s.Id, &s.Name, &s.Url, &s.Interval, &s.Created)
+	err = tx.QueryRowContext(ctx, query, id).Scan(&s.ID, &s.Name, &s.URL, &s.Interval, &s.Created)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrServiceNotFound
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -121,7 +128,7 @@ func (r *PostgresRepository) GetServiceByName(ctx context.Context, name string) 
 
 	query := `SELECT id, name, url, interval_seconds, created_at FROM services WHERE name = $1`
 	var s service.Service
-	err = tx.QueryRowContext(ctx, query, name).Scan(&s.Id, &s.Name, &s.Url, &s.Interval, &s.Created)
+	err = tx.QueryRowContext(ctx, query, name).Scan(&s.ID, &s.Name, &s.URL, &s.Interval, &s.Created)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrServiceNotFound
 	}
@@ -148,7 +155,7 @@ func (r *PostgresRepository) DeleteService(ctx context.Context, id int) error {
 	chk := `SELECT 1 FROM services WHERE id = $1`
 	err = tx.QueryRowContext(ctx, chk, id).Scan(&exists)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("service with ID %d not found", id)
 		}
 		return fmt.Errorf("cannot check service existence: %w", err)
@@ -165,7 +172,6 @@ func (r *PostgresRepository) DeleteService(ctx context.Context, id int) error {
 	}
 
 	return err
-
 }
 
 func (r *PostgresRepository) AddCheckResult(ctx context.Context, result *check.Result) error {
@@ -173,23 +179,28 @@ func (r *PostgresRepository) AddCheckResult(ctx context.Context, result *check.R
 	if err != nil {
 		return fmt.Errorf("cannot begin transaction: %w", err)
 	}
-
 	defer tx.Rollback()
 
-	query := `INSERT INTO check_results (service_id, status_code, response_time_ms) 
-              VALUES ($1, $2, $3) RETURNING id, checked_at`
+	query := `
+		INSERT INTO check_results (service_id, status_code, response_time_ms)
+		VALUES ($1, $2, $3)
+		RETURNING id, checked_at
+	`
 
-	row := tx.QueryRowContext(ctx, query, result.ServiceId, result.ResponseCode, result.RespDuration).Scan(&result.Id, &result.TimeChecked)
+	err = tx.QueryRowContext(ctx, query, result.ServiceID, result.ResponseCode, result.RespDuration).
+		Scan(&result.ID, &result.TimeChecked)
+	if err != nil {
+		return fmt.Errorf("failed to insert check result: %w", err)
+	}
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("cannot commit transaction: %w", err)
 	}
 
-	return row
+	return nil
 }
 
 func (r *PostgresRepository) GetCheckResults(ctx context.Context, serviceID int, limit int) ([]*check.Result, error) {
-
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return nil, fmt.Errorf("cannot begin transaction: %w", err)
@@ -197,8 +208,12 @@ func (r *PostgresRepository) GetCheckResults(ctx context.Context, serviceID int,
 
 	defer tx.Rollback()
 
-	query := `SELECT id, service_id, status_code, response_time_ms, checked_at 
-              FROM check_results WHERE service_id = $1 ORDER BY checked_at DESC LIMIT $2`
+	query := `
+		SELECT id, service_id, status_code, response_time_ms, checked_at 
+        FROM check_results 
+		WHERE service_id = $1 
+		ORDER BY checked_at DESC LIMIT $2
+	`
 
 	rows, err := tx.QueryContext(ctx, query, serviceID, limit)
 	if err != nil {
@@ -206,10 +221,14 @@ func (r *PostgresRepository) GetCheckResults(ctx context.Context, serviceID int,
 	}
 	defer rows.Close()
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	var results []*check.Result
 	for rows.Next() {
 		var result check.Result
-		err := rows.Scan(&result.Id, &result.ServiceId, &result.ResponseCode,
+		err := rows.Scan(&result.ID, &result.ServiceID, &result.ResponseCode,
 			&result.RespDuration, &result.TimeChecked)
 		if err != nil {
 			return nil, err
@@ -224,8 +243,10 @@ func (r *PostgresRepository) GetCheckResults(ctx context.Context, serviceID int,
 	return results, nil
 }
 
-func (r *PostgresRepository) GetLastServiceCheck(ctx context.Context, serviceID int) (*check.ResultRequest, error) {
-
+func (r *PostgresRepository) GetLastServiceCheck(
+	ctx context.Context,
+	serviceID int,
+) (*check.ResultRequest, error) {
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return nil, fmt.Errorf("cannot begin transaction: %w", err)
@@ -233,12 +254,16 @@ func (r *PostgresRepository) GetLastServiceCheck(ctx context.Context, serviceID 
 
 	defer tx.Rollback()
 
-	query := `SELECT service_id, status_code, response_time_ms, checked_at
-              FROM check_results WHERE service_id = $1 ORDER BY checked_at DESC LIMIT 1`
+	query := `
+		SELECT service_id, status_code, response_time_ms, checked_at
+        FROM check_results 
+		WHERE service_id = $1 
+		ORDER BY checked_at DESC LIMIT 1
+	`
 
 	var result check.ResultRequest
 
-	err = tx.QueryRowContext(ctx, query, serviceID).Scan(&result.ServiceId, &result.ResponseCode,
+	err = tx.QueryRowContext(ctx, query, serviceID).Scan(&result.ServiceID, &result.ResponseCode,
 		&result.RespDuration, &result.TimeChecked)
 
 	if errors.Is(err, sql.ErrNoRows) {
@@ -252,8 +277,12 @@ func (r *PostgresRepository) GetLastServiceCheck(ctx context.Context, serviceID 
 	return &result, nil
 }
 
-func (r *PostgresRepository) GetCheckResultsByStatus(ctx context.Context, serviceID int, respCodes []int, limit int) ([]*check.Result, error) {
-
+func (r *PostgresRepository) GetCheckResultsByStatus(
+	ctx context.Context,
+	serviceID int,
+	respCodes []int,
+	limit int,
+) ([]*check.Result, error) {
 	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return nil, fmt.Errorf("cannot begin transaction: %w", err)
@@ -261,8 +290,12 @@ func (r *PostgresRepository) GetCheckResultsByStatus(ctx context.Context, servic
 
 	defer tx.Rollback()
 
-	query := `SELECT id, service_id, status_code, response_time_ms, checked_at 
-              FROM check_results WHERE service_id = $1 AND status_code = ANY($2) ORDER BY checked_at DESC LIMIT $3`
+	query := `
+		SELECT id, service_id, status_code, response_time_ms, checked_at 
+        FROM check_results 
+		WHERE service_id = $1 AND status_code = ANY($2) 
+		ORDER BY checked_at DESC LIMIT $3
+	`
 
 	rows, err := tx.QueryContext(ctx, query, serviceID, respCodes, limit)
 	if err != nil {
@@ -271,10 +304,14 @@ func (r *PostgresRepository) GetCheckResultsByStatus(ctx context.Context, servic
 
 	defer rows.Close()
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	var results []*check.Result
 	for rows.Next() {
 		var result check.Result
-		err := rows.Scan(&result.Id, &result.ServiceId, &result.ResponseCode,
+		err := rows.Scan(&result.ID, &result.ServiceID, &result.ResponseCode,
 			&result.RespDuration, &result.TimeChecked)
 		if err != nil {
 			return nil, err

@@ -3,40 +3,41 @@ package service
 import (
 	"errors"
 	"regexp"
-	"sample_project/internal/model/check"
 	"time"
+
+	"sample_project/internal/model/check"
 )
 
 type Service struct {
-	Id       int       `json:"id"`
+	ID       int       `json:"id"`
 	Name     string    `json:"name" binding:"required,min=3"`
-	Url      string    `json:"url" binding:"required"`
+	URL      string    `json:"url" binding:"required"`
 	Interval int       `json:"interval" binding:"required,min=10"`
 	Created  time.Time `json:"created"`
 }
 
-type ServiceRequest struct {
+type Request struct {
 	Name     string `json:"name" binding:"required,min=3"`
-	Url      string `json:"url" binding:"required"`
+	URL      string `json:"url" binding:"required"`
 	Interval int    `json:"interval" binding:"required,min=10"`
 }
 
-type ServiceStatus struct {
+type Status struct {
 	Service   Service              `json:"service"`
-	LastCheck *check.ResultRequest `json:"last_check,omitempty"`
+	LastCheck *check.ResultRequest `json:"lastCheck,omitempty"`
 }
 
 func NewService(name, url string, interval int) *Service {
 	return &Service{
 		Name:     name,
-		Url:      url,
+		URL:      url,
 		Interval: interval,
 		Created:  time.Now().UTC(),
 	}
 }
 
-func (s *ServiceRequest) Validate() error {
-	matched, _ := regexp.MatchString(`^https?://`, s.Url)
+func (s *Request) Validate() error {
+	matched, _ := regexp.MatchString(`^https?://`, s.URL)
 	if !matched {
 		return errors.New("URL must start with http:// or https://")
 	}

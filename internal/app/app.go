@@ -5,20 +5,16 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
-	"sample_project/internal/handler"
-	"sample_project/internal/middleware"
-	"sample_project/internal/repository"
-	"sample_project/internal/service"
-	"syscall"
 	"time"
-
-	_ "sample_project/internal/docs"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	_ "sample_project/internal/docs" // swagger docs
+	"sample_project/internal/handler"
+	"sample_project/internal/middleware"
+	"sample_project/internal/repository"
+	"sample_project/internal/service"
 )
 
 type App struct {
@@ -55,8 +51,9 @@ func New(repo repository.Repository, monitor *service.MonitorService, svc *servi
 	return &App{
 		router: router,
 		server: &http.Server{
-			Addr:    ":7070",
-			Handler: router,
+			Addr:              ":7070",
+			Handler:           router,
+			ReadHeaderTimeout: 10 * time.Second,
 		},
 		repo:    repo,
 		monitor: monitor,
@@ -74,19 +71,15 @@ func (a *App) Start() {
 }
 
 func (a *App) Stop() {
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("Shutting down server...")
-
 	a.monitor.Stop()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	// defer cancel()
 
 	if err := a.server.Shutdown(ctx); err != nil {
 		log.Fatalf("Server forced to shutdown: %v", err)
 	}
 
 	log.Println("Server exited")
+	cancel()
 }

@@ -11,12 +11,13 @@ type Config struct {
 	DatabaseURL string
 }
 
+// Загрузка переменных окружения.
 func Load() *Config {
 	return &Config{
 		JWTSecret:   getEnv("JWT_SECRET", "default-jwt-secret"),
 		User:        getEnv("USERNAME", "admin"),
 		Pass:        getEnv("PASSWORD", "password"),
-		DatabaseURL: getEnv("DATABASE_URL", "host=localhost port=5432 user=monitor_user password=monitor_password dbname=monitor_db sslmode=disable"),
+		DatabaseURL: getEnv("DATABASE_URL", "host=localhost port=5432 user=user password=pass dbname=db sslmode=disable"),
 	}
 }
 

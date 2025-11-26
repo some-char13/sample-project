@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/gin-gonic/gin"
 	"sample_project/internal/conf"
 	"sample_project/internal/model/register"
 	"sample_project/internal/model/service"
 	Jwt "sample_project/internal/pkg/jwt"
 	srv "sample_project/internal/service"
-	"strconv"
-	"strings"
-
-	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -32,7 +32,7 @@ func NewHandler(service *srv.Service, monitor *srv.MonitorService) *Handler {
 // @Tags services
 // @Accept json
 // @Produce json
-// @Param input body service.ServiceRequest true "Данные сервиса"
+// @Param input body service.Request true "Данные сервиса"
 // @Success 201 {object} service.Service
 // @Failure 400 {string} string "Invalid request data"
 // @Failure 409 {string} string "Service with this name already exists"
@@ -40,7 +40,7 @@ func NewHandler(service *srv.Service, monitor *srv.MonitorService) *Handler {
 // @Router /api/services [post]
 // @Security BearerAuth
 func (h *Handler) CreateService(ctx *gin.Context) {
-	var req service.ServiceRequest
+	var req service.Request
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -61,7 +61,6 @@ func (h *Handler) CreateService(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, svc)
 }
 
-// GetServices возвращает список всех сервисов
 // @Summary Получение списка сервисов
 // @Tags services
 // @Produce json
@@ -82,7 +81,7 @@ func (h *Handler) GetServices(ctx *gin.Context) {
 // @Summary Получение статуса всех сервисов
 // @Tags services
 // @Produce json
-// @Success 200 {array} service.ServiceStatus
+// @Success 200 {array} service.Status
 // @Failure 500 {string} string "Internal server error"
 // @Router /api/services/status [get]
 func (h *Handler) GetServicesStatus(ctx *gin.Context) {
@@ -173,7 +172,6 @@ func (h *Handler) GetServiceResults(ctx *gin.Context) {
 // @Failure 500 {string} string "Internal server error"
 // @Router /api/services/{id}/results/filter [get]
 func (h *Handler) GetServiceResultsByStatus(ctx *gin.Context) {
-
 	idStr := ctx.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -254,8 +252,8 @@ func (h *Handler) SignIn(ctx *gin.Context) {
 	})
 }
 
-// HealthCheck проверка здоровья API
-// @Summary Проверка здоровья
+// HealthCheck проверка API
+// @Summary Проверка API
 // @Tags health
 // @Produce json
 // @Success 200 {object} map[string]string
@@ -272,7 +270,7 @@ func httpcode(codesStr string) ([]int, error) {
 		return nil, fmt.Errorf("response codes list cannot be empty")
 	}
 
-	var codes []int
+	codes := make([]int, 0, len(strings.Split(codesStr, ",")))
 
 	for _, codeStr := range strings.Split(codesStr, ",") {
 		codeStr = strings.TrimSpace(codeStr)

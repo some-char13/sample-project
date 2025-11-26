@@ -4,29 +4,21 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"sync"
+	"time"
+
 	"sample_project/internal/model/check"
 	"sample_project/internal/model/service"
 	"sample_project/internal/repository"
-	"sync"
-	"time"
 )
 
-// type MonitorService struct {
-// 	repo   repository.Repository
-// 	checks map[int]*serviceCheck
-// 	mu     sync.RWMutex
-// 	ctx    context.Context
-// 	cancel context.CancelFunc
-// 	wg     sync.WaitGroup
-// }
-
 type MonitorService struct {
-	repo   repository.Repository // интерфейс ✅
-	checks map[int]*serviceCheck // указатель на map ✅
-	mu     *sync.RWMutex         // теперь указатель для консистентности
-	ctx    context.Context       // интерфейс ✅
-	cancel context.CancelFunc    // функция ✅
-	wg     *sync.WaitGroup       // теперь указатель
+	repo   repository.Repository
+	checks map[int]*serviceCheck
+	mu     *sync.RWMutex
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     *sync.WaitGroup
 }
 
 type serviceCheck struct {
@@ -40,25 +32,14 @@ func NewMonitorService(repo repository.Repository) *MonitorService {
 	return &MonitorService{
 		repo:   repo,
 		checks: make(map[int]*serviceCheck),
-		mu:     &sync.RWMutex{}, // создаем указатель
+		mu:     &sync.RWMutex{},
 		ctx:    ctx,
 		cancel: cancel,
-		wg:     &sync.WaitGroup{}, // создаем указатель
+		wg:     &sync.WaitGroup{},
 	}
 }
 
-// func NewMonitorService(repo repository.Repository) *MonitorService {
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	return &MonitorService{
-// 		repo:   repo,
-// 		checks: make(map[int]*serviceCheck),
-// 		ctx:    ctx,
-// 		cancel: cancel,
-// 	}
-// }
-
 func (m *MonitorService) Start() error {
-
 	ctx := context.Background()
 
 	services, err := m.repo.GetServices(ctx)
@@ -94,10 +75,10 @@ func (m *MonitorService) StartMonitoring(svc *service.Service) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if existing, exists := m.checks[svc.Id]; exists {
+	if existing, exists := m.checks[svc.ID]; exists {
 		existing.ticker.Stop()
 		existing.cancel()
-		delete(m.checks, svc.Id)
+		delete(m.checks, svc.ID)
 	}
 
 	ctx, cancel := context.WithCancel(m.ctx)
@@ -108,7 +89,7 @@ func (m *MonitorService) StartMonitoring(svc *service.Service) {
 		ticker:  ticker,
 		cancel:  cancel,
 	}
-	m.checks[svc.Id] = check
+	m.checks[svc.ID] = check
 
 	m.wg.Add(1)
 	go m.monitorService(ctx, svc, ticker)
@@ -147,9 +128,9 @@ func (m *MonitorService) performCheck(ctx context.Context, svc *service.Service)
 		Timeout: 30 * time.Second,
 	}
 
-	req, err := http.NewRequest("GET", svc.Url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", svc.URL, nil)
 	if err != nil {
-		m.saveCheckResult(ctx, svc.Id, 0, int(time.Since(start).Milliseconds()))
+		m.saveCheckResult(ctx, svc.ID, 0, int(time.Since(start).Milliseconds()))
 		return
 	}
 
@@ -160,12 +141,12 @@ func (m *MonitorService) performCheck(ctx context.Context, svc *service.Service)
 	responseTime := time.Since(start).Milliseconds()
 
 	if err != nil {
-		m.saveCheckResult(ctx, svc.Id, 0, int(responseTime))
+		m.saveCheckResult(ctx, svc.ID, 0, int(responseTime))
 		return
 	}
 	defer resp.Body.Close()
 
-	m.saveCheckResult(ctx, svc.Id, resp.StatusCode, int(responseTime))
+	m.saveCheckResult(ctx, svc.ID, resp.StatusCode, int(responseTime))
 }
 
 func (m *MonitorService) saveCheckResult(ctx context.Context, serviceID, statusCode, responseTime int) {

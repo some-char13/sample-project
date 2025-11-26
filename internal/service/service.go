@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"sample_project/internal/model/check"
 	"sample_project/internal/model/service"
 	"sample_project/internal/repository"
@@ -19,22 +20,21 @@ func NewService(repo repository.Repository) *Service {
 	}
 }
 
-func (s *Service) CreateService(ctx context.Context, serviceReq *service.ServiceRequest) (*service.Service, error) {
+func (s *Service) CreateService(ctx context.Context, serviceReq *service.Request) (*service.Service, error) {
 	if err := serviceReq.Validate(); err != nil {
 		return nil, err
 	}
 
 	existing, err := s.repo.GetServiceByName(ctx, serviceReq.Name)
 	if err != nil {
-		if errors.Is(err, repository.ErrServiceNotFound) {
-		} else {
+		if !errors.Is(err, repository.ErrServiceNotFound) {
 			return nil, fmt.Errorf("failed to check service existence: %w", err)
 		}
 	} else if existing != nil {
 		return nil, fmt.Errorf("service with name '%s' already exists", serviceReq.Name)
 	}
 
-	svc := service.NewService(serviceReq.Name, serviceReq.Url, serviceReq.Interval)
+	svc := service.NewService(serviceReq.Name, serviceReq.URL, serviceReq.Interval)
 
 	createdSvc, err := s.repo.AddService(ctx, svc)
 	if err != nil {
@@ -68,11 +68,16 @@ func (s *Service) GetServiceResults(ctx context.Context, serviceID int, limit in
 	return s.repo.GetCheckResults(ctx, serviceID, limit)
 }
 
-func (s *Service) GetServiceResultsByStatus(ctx context.Context, serviceID int, respCodes []int, limit int) ([]*check.Result, error) {
+func (s *Service) GetServiceResultsByStatus(
+	ctx context.Context,
+	serviceID int,
+	respCodes []int,
+	limit int,
+) ([]*check.Result, error) {
 	return s.repo.GetCheckResultsByStatus(ctx, serviceID, respCodes, limit)
 }
 
-func (s *Service) GetServiceStatus(ctx context.Context, serviceID int) (*service.ServiceStatus, error) {
+func (s *Service) GetServiceStatus(ctx context.Context, serviceID int) (*service.Status, error) {
 	svc, err := s.repo.GetServiceByID(ctx, serviceID)
 	if err != nil {
 		if errors.Is(err, repository.ErrServiceNotFound) {
@@ -89,7 +94,7 @@ func (s *Service) GetServiceStatus(ctx context.Context, serviceID int) (*service
 		return nil, fmt.Errorf("database error: %w", err)
 	}
 
-	status := &service.ServiceStatus{
+	status := &service.Status{
 		Service:   *svc,
 		LastCheck: latest,
 	}
@@ -97,15 +102,15 @@ func (s *Service) GetServiceStatus(ctx context.Context, serviceID int) (*service
 	return status, nil
 }
 
-func (s *Service) GetAllServicesStatus(ctx context.Context) ([]*service.ServiceStatus, error) {
+func (s *Service) GetAllServicesStatus(ctx context.Context) ([]*service.Status, error) {
 	services, err := s.repo.GetServices(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var statuses []*service.ServiceStatus
+	statuses := make([]*service.Status, 0, len(services))
 	for _, svc := range services {
-		status, err := s.GetServiceStatus(ctx, svc.Id)
+		status, err := s.GetServiceStatus(ctx, svc.ID)
 		if err != nil {
 			return nil, err
 		}

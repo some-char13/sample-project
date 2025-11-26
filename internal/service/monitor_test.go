@@ -4,10 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"sample_project/internal/model/service"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"sample_project/internal/model/service"
 )
 
 func TestMonitorService_StartStop(t *testing.T) {
@@ -27,9 +26,9 @@ func TestMonitorService_StartMonitoring(t *testing.T) {
 	monitor := NewMonitorService(mockRepo)
 
 	svc := &service.Service{
-		Id:       1,
+		ID:       1,
 		Name:     "lenta",
-		Url:      "https://lenta.ru",
+		URL:      "https://lenta.ru",
 		Interval: 3,
 	}
 
@@ -39,7 +38,7 @@ func TestMonitorService_StartMonitoring(t *testing.T) {
 
 	time.Sleep(5 * time.Second)
 
-	monitor.StopMonitoring(svc.Id)
+	monitor.StopMonitoring(svc.ID)
 	monitor.Stop()
 
 	mockRepo.AssertExpectations(t)
@@ -51,15 +50,15 @@ func TestMonitorService_Start_WithServices(t *testing.T) {
 
 	services := []*service.Service{
 		{
-			Id:       1,
+			ID:       1,
 			Name:     "test 1",
-			Url:      "https://lenta.ru",
+			URL:      "https://lenta.ru",
 			Interval: 2,
 		},
 		{
-			Id:       2,
+			ID:       2,
 			Name:     "test 2",
-			Url:      "https://github.com",
+			URL:      "https://github.com",
 			Interval: 2,
 		},
 	}

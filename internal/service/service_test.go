@@ -5,19 +5,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"sample_project/internal/model/check"
 	"sample_project/internal/model/service"
 	"sample_project/internal/repository"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 type MockRepository struct {
 	mock.Mock
 }
 
-func (m *MockRepository) AddService(ctx context.Context, svc *service.Service) (*service.Service, error) {
+func (m *MockRepository) AddService(
+	ctx context.Context,
+	svc *service.Service,
+) (*service.Service, error) {
 	args := m.Called(ctx, svc)
 	return args.Get(0).(*service.Service), args.Error(1)
 }
@@ -64,7 +66,12 @@ func (m *MockRepository) GetCheckResults(ctx context.Context, serviceID, limit i
 	return args.Get(0).([]*check.Result), args.Error(1)
 }
 
-func (m *MockRepository) GetCheckResultsByStatus(ctx context.Context, serviceID int, respCodes []int, limit int) ([]*check.Result, error) {
+func (m *MockRepository) GetCheckResultsByStatus(
+	ctx context.Context,
+	serviceID int,
+	respCodes []int,
+	limit int,
+) ([]*check.Result, error) {
 	args := m.Called(ctx, serviceID, respCodes, limit)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -94,9 +101,9 @@ func TestCreateService(t *testing.T) {
 	mockRepo := new(MockRepository)
 	svc := NewService(mockRepo)
 
-	req := &service.ServiceRequest{
+	req := &service.Request{
 		Name:     "Test Service",
-		Url:      "https://example.com",
+		URL:      "https://example.com",
 		Interval: 30,
 	}
 
@@ -104,9 +111,9 @@ func TestCreateService(t *testing.T) {
 		Return((*service.Service)(nil), repository.ErrServiceNotFound)
 
 	createdService := &service.Service{
-		Id:       1,
+		ID:       1,
 		Name:     "Test Service",
-		Url:      "https://example.com",
+		URL:      "https://example.com",
 		Interval: 30,
 	}
 	mockRepo.On("AddService", mock.Anything, mock.Anything).
@@ -124,12 +131,12 @@ func TestCreateService_DuplicateName(t *testing.T) {
 	mockRepo := new(MockRepository)
 	svc := NewService(mockRepo)
 
-	existing := &service.Service{Id: 1, Name: "Test Service"}
+	existing := &service.Service{ID: 1, Name: "Test Service"}
 	mockRepo.On("GetServiceByName", mock.Anything, "Test Service").
 		Return(existing, nil)
 
-	_, err := svc.CreateService(context.Background(), &service.ServiceRequest{
-		Name: "Test Service", Url: "https://example.com", Interval: 30,
+	_, err := svc.CreateService(context.Background(), &service.Request{
+		Name: "Test Service", URL: "https://example.com", Interval: 30,
 	})
 
 	assert.Error(t, err)
@@ -140,9 +147,9 @@ func TestCreateService_ValidationError(t *testing.T) {
 	mockRepo := new(MockRepository)
 	svc := NewService(mockRepo)
 
-	req := &service.ServiceRequest{
+	req := &service.Request{
 		Name:     "Test",
-		Url:      "Qwerty",
+		URL:      "Qwerty",
 		Interval: 30,
 	}
 
@@ -158,8 +165,8 @@ func TestGetServices(t *testing.T) {
 	svc := NewService(mockRepo)
 
 	expectedServices := []*service.Service{
-		{Id: 1, Name: "Service 1", Url: "https://lenta.ru", Interval: 30},
-		{Id: 2, Name: "Service 2", Url: "https://google.com", Interval: 60},
+		{ID: 1, Name: "Service 1", URL: "https://lenta.ru", Interval: 30},
+		{ID: 2, Name: "Service 2", URL: "https://google.com", Interval: 60},
 	}
 
 	mockRepo.On("GetServices", mock.Anything).Return(expectedServices, nil)
@@ -177,14 +184,14 @@ func TestGetServiceStatus(t *testing.T) {
 	svc := NewService(mockRepo)
 
 	existingService := &service.Service{
-		Id:       1,
+		ID:       1,
 		Name:     "Test Service",
-		Url:      "https://lenta.ru",
+		URL:      "https://lenta.ru",
 		Interval: 30,
 	}
 
 	latestCheck := &check.ResultRequest{
-		ServiceId:    1,
+		ServiceID:    1,
 		ResponseCode: 200,
 		RespDuration: 150,
 		TimeChecked:  time.Now(),
@@ -199,7 +206,7 @@ func TestGetServiceStatus(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, status)
-	assert.Equal(t, 1, status.Service.Id)
+	assert.Equal(t, 1, status.Service.ID)
 	assert.Equal(t, 200, status.LastCheck.ResponseCode)
 	mockRepo.AssertExpectations(t)
 }
@@ -222,15 +229,15 @@ func TestGetServiceResults(t *testing.T) {
 
 	expectedResults := []*check.Result{
 		{
-			Id:           1,
-			ServiceId:    1,
+			ID:           1,
+			ServiceID:    1,
 			ResponseCode: 200,
 			RespDuration: 150,
 			TimeChecked:  time.Now().UTC(),
 		},
 		{
-			Id:           2,
-			ServiceId:    1,
+			ID:           2,
+			ServiceID:    1,
 			ResponseCode: 200,
 			RespDuration: 200,
 			TimeChecked:  time.Now().UTC().Add(-time.Minute),

@@ -9,7 +9,10 @@ import (
 )
 
 func Migrate(dsn string) error {
-	_, file, _, _ := runtime.Caller(0)
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("cannot get caller info")
+	}
 	migrationsDir := filepath.Join(filepath.Dir(file), ".")
 
 	db, err := goose.OpenDBWithDriver("pgx", dsn)
