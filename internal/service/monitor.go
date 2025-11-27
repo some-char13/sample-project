@@ -12,13 +12,22 @@ import (
 	"sample_project/internal/repository"
 )
 
+// type MonitorService struct {
+// 	repo   repository.Repository
+// 	checks map[int]*serviceCheck
+// 	mu     *sync.RWMutex
+// 	ctx    context.Context
+// 	cancel context.CancelFunc
+// 	wg     *sync.WaitGroup
+// }
+
 type MonitorService struct {
 	repo   repository.Repository
 	checks map[int]*serviceCheck
-	mu     *sync.RWMutex
+	mu     sync.RWMutex
 	ctx    context.Context
 	cancel context.CancelFunc
-	wg     *sync.WaitGroup
+	wg     sync.WaitGroup
 }
 
 type serviceCheck struct {
@@ -32,12 +41,22 @@ func NewMonitorService(repo repository.Repository) *MonitorService {
 	return &MonitorService{
 		repo:   repo,
 		checks: make(map[int]*serviceCheck),
-		mu:     &sync.RWMutex{},
 		ctx:    ctx,
 		cancel: cancel,
-		wg:     &sync.WaitGroup{},
 	}
 }
+
+// func NewMonitorService(repo repository.Repository) *MonitorService {
+// 	ctx, cancel := context.WithCancel(context.Background())
+// 	return &MonitorService{
+// 		repo:   repo,
+// 		checks: make(map[int]*serviceCheck),
+// 		mu:     &sync.RWMutex{},
+// 		ctx:    ctx,
+// 		cancel: cancel,
+// 		wg:     &sync.WaitGroup{},
+// 	}
+// }
 
 func (m *MonitorService) Start() error {
 	ctx := context.Background()

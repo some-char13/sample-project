@@ -4,9 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"sample_project/internal/model/service"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"sample_project/internal/model/service"
 )
 
 func TestMonitorService_StartStop(t *testing.T) {
