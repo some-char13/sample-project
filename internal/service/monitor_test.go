@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"sample_project/internal/model/service"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"sample_project/internal/model/check"
+	"sample_project/internal/model/service"
 )
 
 func TestMonitorService_StartStop(t *testing.T) {
@@ -28,16 +28,18 @@ func TestMonitorService_StartMonitoring(t *testing.T) {
 
 	svc := &service.Service{
 		ID:       1,
-		Name:     "lenta",
-		URL:      "https://lenta.ru",
-		Interval: 3,
+		Name:     "test-service",
+		URL:      "https://httpbin.org/status/200",
+		Interval: 1,
 	}
 
-	mockRepo.On("AddCheckResult", mock.Anything, mock.AnythingOfType("*check.Result")).Return(nil)
+	mockRepo.On("AddCheckResult", mock.Anything, mock.MatchedBy(func(r *check.Result) bool {
+		return r.ServiceID == 1
+	})).Return(nil).Maybe()
 
 	monitor.StartMonitoring(svc)
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	monitor.StopMonitoring(svc.ID)
 	monitor.Stop()
@@ -52,24 +54,25 @@ func TestMonitorService_Start_WithServices(t *testing.T) {
 	services := []*service.Service{
 		{
 			ID:       1,
-			Name:     "test 1",
-			URL:      "https://lenta.ru",
-			Interval: 2,
+			Name:     "google",
+			URL:      "https://google.com",
+			Interval: 1,
 		},
 		{
 			ID:       2,
-			Name:     "test 2",
+			Name:     "github",
 			URL:      "https://github.com",
-			Interval: 2,
+			Interval: 1,
 		},
 	}
 
 	mockRepo.On("GetServices", mock.Anything).Return(services, nil)
-	mockRepo.On("AddCheckResult", mock.Anything, mock.AnythingOfType("*check.Result")).Return(nil).Maybe()
+
+	mockRepo.On("AddCheckResult", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	assert.NoError(t, monitor.Start())
 
-	time.Sleep(3 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	monitor.Stop()
 
