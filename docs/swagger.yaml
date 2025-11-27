@@ -3,35 +3,34 @@ definitions:
     properties:
       id:
         type: integer
-      resp_code:
+      respCode:
         type: integer
-      resp_duration:
+      respDuration:
         type: integer
-      service_id:
+      serviceId:
         type: integer
-      time_cheched:
+      timeChecked:
         type: string
     required:
     - id
-    - resp_code
-    - resp_duration
-    - service_id
+    - respCode
+    - respDuration
+    - serviceId
     type: object
   check.ResultRequest:
     properties:
-      id:
+      lastCheck:
+        type: string
+      respCode:
         type: integer
-      resp_code:
+      respDuration:
         type: integer
-      resp_duration:
-        type: integer
-      service_id:
+      serviceId:
         type: integer
     required:
-    - id
-    - resp_code
-    - resp_duration
-    - service_id
+    - respCode
+    - respDuration
+    - serviceId
     type: object
   register.LoginRequest:
     properties:
@@ -40,13 +39,14 @@ definitions:
       username:
         type: string
     type: object
-  service.Service:
+  sample_project_internal_model_service.Service:
     properties:
       created:
         type: string
       id:
         type: integer
       interval:
+        minimum: 10
         type: integer
       name:
         minLength: 3
@@ -54,16 +54,14 @@ definitions:
       url:
         type: string
     required:
-    - id
     - interval
     - name
     - url
     type: object
-  service.ServiceRequest:
+  service.Request:
     properties:
-      id:
-        type: integer
       interval:
+        minimum: 10
         type: integer
       name:
         minLength: 3
@@ -71,167 +69,73 @@ definitions:
       url:
         type: string
     required:
-    - id
     - interval
     - name
     - url
+    type: object
+  service.Status:
+    properties:
+      lastCheck:
+        $ref: '#/definitions/check.ResultRequest'
+      service:
+        $ref: '#/definitions/sample_project_internal_model_service.Service'
     type: object
 info:
   contact: {}
 paths:
-  /api/result/item:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Модель результата провреки
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/check.ResultRequest'
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: No Content
-        "400":
-          description: Result id already exists
-          schema:
-            type: string
-        "401":
-          description: invalid token
-          schema:
-            type: string
-      security:
-      - BearerAuth: []
-      summary: Создание  результата провреки
-      tags:
-      - result
-  /api/result/item/{id}:
-    delete:
-      parameters:
-      - description: ID результата
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: No Content
-        "400":
-          description: Item not found
-          schema:
-            type: string
-        "401":
-          description: Invalid token
-          schema:
-            type: string
-      security:
-      - BearerAuth: []
-      summary: Удаление результата по ID
-      tags:
-      - result
-    get:
-      parameters:
-      - description: ID результата
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/check.Result'
-        "400":
-          description: Item not found
-          schema:
-            type: string
-      summary: Поиск результата по ID
-      tags:
-      - result
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: ID результата
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Модель результата
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/check.ResultRequest'
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: No Content
-        "400":
-          description: Result item not found
-          schema:
-            type: string
-        "401":
-          description: Invalid token
-          schema:
-            type: string
-      security:
-      - BearerAuth: []
-      summary: Изменение результата по ID
-      tags:
-      - result
-  /api/result/items:
+  /api/services:
     get:
       produces:
       - application/json
       responses:
         "200":
           description: OK
-        "400":
-          description: Item not found
+          schema:
+            items:
+              $ref: '#/definitions/sample_project_internal_model_service.Service'
+            type: array
+        "500":
+          description: Internal server error
           schema:
             type: string
-      summary: Получить список всех результатов
+      summary: Получение списка сервисов
       tags:
-      - result
-  /api/service/item:
+      - services
     post:
       consumes:
       - application/json
       parameters:
-      - description: Модель сервиса
+      - description: Данные сервиса
         in: body
         name: input
         required: true
         schema:
-          $ref: '#/definitions/service.ServiceRequest'
+          $ref: '#/definitions/service.Request'
       produces:
       - application/json
       responses:
-        "204":
-          description: No Content
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/sample_project_internal_model_service.Service'
         "400":
-          description: Service id already exists
+          description: Invalid request data
           schema:
             type: string
-        "401":
-          description: invalid token
+        "409":
+          description: Service with this name already exists
+          schema:
+            type: string
+        "500":
+          description: Internal server error
           schema:
             type: string
       security:
       - BearerAuth: []
       summary: Создание сервиса
       tags:
-      - service
-  /api/service/item/{id}:
+      - services
+  /api/services/{id}:
     delete:
       parameters:
       - description: ID сервиса
@@ -239,24 +143,27 @@ paths:
         name: id
         required: true
         type: integer
-      produces:
-      - application/json
       responses:
         "204":
           description: No Content
         "400":
-          description: Item not found
+          description: Invalid service ID
           schema:
             type: string
-        "401":
-          description: Invalid token
+        "404":
+          description: Service not found
+          schema:
+            type: string
+        "500":
+          description: Internal server error
           schema:
             type: string
       security:
       - BearerAuth: []
-      summary: Удаление сервиса по ID
+      summary: Удаление сервиса
       tags:
-      - service
+      - services
+  /api/services/{id}/results:
     get:
       parameters:
       - description: ID сервиса
@@ -264,73 +171,91 @@ paths:
         name: id
         required: true
         type: integer
+      - description: Лимит результатов (по умолчанию 20)
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/service.Service'
+            items:
+              $ref: '#/definitions/check.Result'
+            type: array
         "400":
-          description: Item not found
+          description: Invalid service ID
           schema:
             type: string
-      summary: Поиск сервиса по ID
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Получение истории проверок
       tags:
-      - service
-    put:
-      consumes:
-      - application/json
+      - services
+  /api/services/{id}/results/filter:
+    get:
       parameters:
       - description: ID сервиса
         in: path
         name: id
         required: true
         type: integer
-      - description: Модель сервиса
-        in: body
-        name: input
+      - description: Список кодов ответов через запятую
+        in: query
+        name: respCodeList
         required: true
-        schema:
-          $ref: '#/definitions/service.ServiceRequest'
+        type: string
+      - description: Лимит результатов (по умолчанию 20)
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/check.Result'
+            type: array
         "400":
-          description: Item not found
+          description: Invalid parameters
           schema:
             type: string
-        "401":
-          description: Invalid token
+        "500":
+          description: Internal server error
           schema:
             type: string
-      security:
-      - BearerAuth: []
-      summary: Изменение сервиса по ID
+      summary: Получение истории проверок по статусу
       tags:
-      - service
-  /api/service/items:
+      - services
+  /api/services/status:
     get:
       produces:
       - application/json
       responses:
         "200":
           description: OK
-        "400":
-          description: Item not found
+          schema:
+            items:
+              $ref: '#/definitions/service.Status'
+            type: array
+        "500":
+          description: Internal server error
           schema:
             type: string
-      summary: Получить список всех сервисов
+      summary: Получение статуса всех сервисов
       tags:
-      - service
+      - services
   /api/sign_in:
     post:
       consumes:
       - application/json
       parameters:
-      - description: Модель аутентификации
+      - description: Данные для входа
         in: body
         name: input
         required: true
@@ -350,10 +275,24 @@ paths:
           schema:
             type: string
         "401":
-          description: Invalid username or password
+          description: Invalid credentials
           schema:
             type: string
       summary: Аутентификация
       tags:
       - auth
+  /health:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Проверка API
+      tags:
+      - health
 swagger: "2.0"

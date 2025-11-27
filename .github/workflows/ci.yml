@@ -1,0 +1,69 @@
+# .github/workflows/ci.yml
+name: CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: monitor_user
+          POSTGRES_PASSWORD: monitor_password
+          POSTGRES_DB: monitor_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U monitor_user -d monitor_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.64.2
+
+      - name: Run linter
+        run: golangci-lint run --timeout=5m --fix
+
+      - name: Run tests with race detector
+        env:
+          DATABASE_URL: postgres://monitor_user:monitor_password@localhost:5432/monitor_db?sslmode=disable
+        run: go test -race -count=100 -v ./...
+
+      - name: Build binary
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o url-checker .
+
+      - name: Build Docker image
+        run: |
+          docker build -t url-checker:test .
+
+      - name: Upload artifact (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: url-checker-binary
+          path: url-checker

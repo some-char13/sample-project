@@ -1,410 +1,298 @@
 package handler
 
 import (
+	"fmt"
+	"log"
 	"net/http"
-	"sample_project/internal/conf"
-	"sample_project/internal/model/check"
-	"sample_project/internal/model/register"
-	"sample_project/internal/model/service"
-	NewItem "sample_project/internal/service"
-	Jwt "sample_project/pkg/jwt"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"sample_project/internal/conf"
+	"sample_project/internal/model/register"
+	"sample_project/internal/model/service"
+	Jwt "sample_project/internal/pkg/jwt"
+	srv "sample_project/internal/service"
 )
 
-// Handler структура, которая имеет методы для работы с каждым эндпоинтом.
-// По желанию можно добавить поля (например различные валидаторы)
 type Handler struct {
+	service *srv.Service
+	monitor *srv.MonitorService
 }
 
-// New конструктор
-func New() *Handler {
-	return &Handler{}
+func NewHandler(service *srv.Service, monitor *srv.MonitorService) *Handler {
+	return &Handler{
+		service: service,
+		monitor: monitor,
+	}
 }
 
-// Create service
+// CreateService создает новый сервис для мониторинга
 // @Summary Создание сервиса
-// @Tags service
+// @Tags services
 // @Accept json
 // @Produce json
-// @Param input body service.ServiceRequest true "Модель сервиса"
-// @Success 204
-// @Failure 400 {string} string "Service id already exists"
-// @Failure      401  {string} string "invalid token"
-// @Router /api/service/item [post]
+// @Param input body service.Request true "Данные сервиса"
+// @Success 201 {object} service.Service
+// @Failure 400 {string} string "Invalid request data"
+// @Failure 409 {string} string "Service with this name already exists"
+// @Failure 500 {string} string "Internal server error"
+// @Router /api/services [post]
 // @Security BearerAuth
-func CreateService(ctx *gin.Context) {
-
-	req := &service.Service{}
-
-	err := ctx.ShouldBindJSON(req)
-	if err != nil {
+func (h *Handler) CreateService(ctx *gin.Context) {
+	var req service.Request
+	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	req = service.NewService(req.Id, req.Name, req.Url, req.Interval)
-	search := NewItem.SearchServiceItem(req.Id)
-	if search == nil {
-		// ch := make(chan any, 1)
 
-		// ch <- req
-		// NewItem.ProcessItems(ch)
-
-		NewItem.ProcessItems(req)
-	} else {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Service id already exists",
-			"id":      req.Id,
-		})
-	}
-
-	ctx.Status(http.StatusNoContent)
-
-}
-
-// Create result
-// @Summary Создание  результата провреки
-// @Tags result
-// @Accept json
-// @Produce json
-// @Param input body check.ResultRequest true "Модель результата провреки"
-// @Success      204
-// @Failure 400 {string} string "Result id already exists"
-// @Failure      401  {string} string "invalid token"
-// @Router        /api/result/item [post]
-// @Security BearerAuth
-func CreateResult(ctx *gin.Context) {
-
-	req := &check.Result{}
-
-	err := ctx.ShouldBindJSON(req)
+	svc, err := h.service.CreateService(ctx.Request.Context(), &req)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		status := http.StatusInternalServerError
+		if err.Error() == fmt.Sprintf("service with name '%s' already exists", req.Name) {
+			status = http.StatusConflict
+		}
+		ctx.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
-	req = check.NewResult(req.Id, req.ServiceId, req.ResponseCode, req.RespDuration)
-	search := NewItem.SearchResultItem(req.Id)
-	if search == nil {
-		// ch := make(chan any, 1)
 
-		// ch <- req
-		// NewItem.ProcessItems(ch)
+	h.monitor.StartMonitoring(svc)
 
-		NewItem.ProcessItems(req)
-	} else {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Result id already exists",
-			"id":      req.Id,
-		})
-	}
-
-	ctx.Status(http.StatusNoContent)
-
+	ctx.JSON(http.StatusCreated, svc)
 }
 
-// Get services
-// @Summary Получить список всех сервисов
-// @Tags service
+// @Summary Получение списка сервисов
+// @Tags services
 // @Produce json
-// @Success 200
-// @Failure 400 {string} string "Item not found"
-// @Router /api/service/items [get]
-func GetService(ctx *gin.Context) {
-	services := NewItem.GetServices()
+// @Success 200 {array} service.Service
+// @Failure 500 {string} string "Internal server error"
+// @Router /api/services [get]
+func (h *Handler) GetServices(ctx *gin.Context) {
+	services, err := h.service.GetServices(ctx.Request.Context())
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get services"})
+		return
+	}
 
 	ctx.JSON(http.StatusOK, services)
 }
 
-// @Summary Получить список всех результатов
-// @Tags result
+// GetServicesStatus возвращает статус всех сервисов
+// @Summary Получение статуса всех сервисов
+// @Tags services
 // @Produce json
-// @Success 200
-// @Failure 400 {string} string "Item not found"
-// @Router /api/result/items [get]
-func GetResult(ctx *gin.Context) {
-	results := NewItem.GetResults()
+// @Success 200 {array} service.Status
+// @Failure 500 {string} string "Internal server error"
+// @Router /api/services/status [get]
+func (h *Handler) GetServicesStatus(ctx *gin.Context) {
+	statuses, err := h.service.GetAllServicesStatus(ctx.Request.Context())
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get services status"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, statuses)
+}
+
+// DeleteService удаляет сервис
+// @Summary Удаление сервиса
+// @Tags services
+// @Param id path int true "ID сервиса"
+// @Success 204
+// @Failure 400 {string} string "Invalid service ID"
+// @Failure 404 {string} string "Service not found"
+// @Failure 500 {string} string "Internal server error"
+// @Router /api/services/{id} [delete]
+// @Security BearerAuth
+func (h *Handler) DeleteService(ctx *gin.Context) {
+	idStr := ctx.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid service ID"})
+		return
+	}
+
+	h.monitor.StopMonitoring(id)
+
+	if err := h.service.DeleteService(ctx.Request.Context(), id); err != nil {
+		if err.Error() == fmt.Sprintf("service with ID %d not found", id) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Service not found"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete service"})
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
+}
+
+// GetServiceResults возвращает историю проверок для сервиса
+// @Summary Получение истории проверок
+// @Tags services
+// @Param id path int true "ID сервиса"
+// @Param limit query int false "Лимит результатов (по умолчанию 20)"
+// @Produce json
+// @Success 200 {array} check.Result
+// @Failure 400 {string} string "Invalid service ID"
+// @Failure 500 {string} string "Internal server error"
+// @Router /api/services/{id}/results [get]
+func (h *Handler) GetServiceResults(ctx *gin.Context) {
+	idStr := ctx.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid service ID"})
+		return
+	}
+
+	limit := 20
+	if limitStr := ctx.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	results, err := h.service.GetServiceResults(ctx.Request.Context(), id, limit)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get check results"})
+		return
+	}
 
 	ctx.JSON(http.StatusOK, results)
 }
 
-// @Summary Поиск сервиса по ID
-// @Tags service
-// @Produce json
+// GetServiceResultsByStatus возвращает историю проверок по статусу
+// @Summary Получение истории проверок по статусу
+// @Tags services
 // @Param id path int true "ID сервиса"
-// @Success 200 {object} service.Service
-// @Failure 400 {string} string "Item not found"
-// @Router /api/service/item/{id} [get]
-func SearchServiceId(ctx *gin.Context) {
-
-	id := ctx.Param("id")
-
-	converted, err := strconv.Atoi(id)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный формат ID"})
-		return
-	}
-
-	search := NewItem.SearchServiceItem(converted)
-	if search == nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Item not found",
-			"id":      converted,
-		})
-	} else {
-		ctx.JSON(http.StatusOK, search)
-	}
-
-}
-
-// @Summary Поиск результата по ID
-// @Tags result
+// @Param respCodeList query string true "Список кодов ответов через запятую"
+// @Param limit query int false "Лимит результатов (по умолчанию 20)"
 // @Produce json
-// @Param id path int true "ID результата"
-// @Success 200 {object} check.Result
-// @Failure 400 {string} string "Item not found"
-// @Router /api/result/item/{id} [get]
-func SearchResultId(ctx *gin.Context) {
-
-	id := ctx.Param("id")
-
-	converted, err := strconv.Atoi(id)
+// @Success 200 {array} check.Result
+// @Failure 400 {string} string "Invalid parameters"
+// @Failure 500 {string} string "Internal server error"
+// @Router /api/services/{id}/results/filter [get]
+func (h *Handler) GetServiceResultsByStatus(ctx *gin.Context) {
+	idStr := ctx.Param("id")
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный формат ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid service ID"})
 		return
 	}
 
-	search := NewItem.SearchResultItem(converted)
-	if search == nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Item not found",
-			"id":      converted,
-		})
-	} else {
-		ctx.JSON(http.StatusOK, search)
-	}
-
-}
-
-// @Summary Удаление сервиса по ID
-// @Tags service
-// @Produce json
-// @Param id path int true "ID сервиса"
-// @Success 204
-// @Failure 400 {string} string "Item not found"
-// @Failure 401 {string} string "Invalid token"
-// @Router /api/service/item/{id} [delete]
-// @Security BearerAuth
-func DeleteService(ctx *gin.Context) {
-
-	id := ctx.Param("id")
-
-	converted, err := strconv.Atoi(id)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный формат ID"})
+	respCodesStr := ctx.Query("respCodeList")
+	if respCodesStr == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Parameter 'respCodeList' is required"})
 		return
 	}
 
-	check := NewItem.SearchServiceItem(converted)
-	if check == nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Item not found",
-			"id":      converted,
-		})
-	} else {
-		NewItem.DeleteItemService(converted)
-	}
-
-	ctx.Status(http.StatusNoContent)
-
-}
-
-// @Summary Удаление результата по ID
-// @Tags result
-// @Produce json
-// @Param id path int true "ID результата"
-// @Success 204
-// @Failure 400 {string} string "Item not found"
-// @Failure 401 {string} string "Invalid token"
-// @Router /api/result/item/{id} [delete]
-// @Security BearerAuth
-func DeleteResult(ctx *gin.Context) {
-
-	id := ctx.Param("id")
-
-	converted, err := strconv.Atoi(id)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный формат ID"})
-		return
-	}
-
-	check := NewItem.SearchResultItem(converted)
-	if check == nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Item not found",
-			"id":      converted,
-		})
-	} else {
-		NewItem.DeleteItemResult(converted)
-	}
-
-	ctx.Status(http.StatusNoContent)
-
-}
-
-// @Summary Изменение сервиса по ID
-// @Tags service
-// @Accept json
-// @Produce json
-// @Param id path int true "ID сервиса"
-// @Param input body service.ServiceRequest true "Модель сервиса"
-// @Success 204
-// @Failure 400 {string} string "Item not found"
-// @Failure 401 {string} string "Invalid token"
-// @Router /api/service/item/{id} [put]
-// @Security BearerAuth
-func ChangeService(ctx *gin.Context) {
-	id := ctx.Param("id")
-
-	converted, err := strconv.Atoi(id)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный формат ID"})
-		return
-	}
-
-	req := &service.Service{}
-	req.Id = converted
-	err = ctx.ShouldBindJSON(req)
+	respCodes, err := httpcode(respCodesStr)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	check := NewItem.SearchServiceItem(converted)
-	if check == nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Item not found",
-			"id":      converted,
-		})
-	} else {
-
-		NewItem.ChangeItems(converted, req)
+	limit := 20
+	if limitStr := ctx.Query("limit"); limitStr != "" {
+		limit, err = strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Parameter 'limit' must be a positive integer"})
+			return
+		}
 	}
 
-	ctx.Status(http.StatusNoContent)
-
-}
-
-// @Summary Изменение результата по ID
-// @Tags result
-// @Accept json
-// @Produce json
-// @Param id path int true "ID результата"
-// @Param input body check.ResultRequest true "Модель результата"
-// @Success 204
-// @Failure 400 {string} string "Result item not found"
-// @Failure 401 {string} string "Invalid token"
-// @Router /api/result/item/{id} [put]
-// @Security BearerAuth
-func ChangeResult(ctx *gin.Context) {
-	id := ctx.Param("id")
-
-	converted, err := strconv.Atoi(id)
+	results, err := h.service.GetServiceResultsByStatus(ctx.Request.Context(), id, respCodes, limit)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "неверный формат ID"})
+		log.Printf("Failed to get check results for service %d: %v", id, err)
+
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to retrieve check results",
+		})
 		return
 	}
 
-	req := &check.Result{}
-	req.Id = converted
-	err = ctx.ShouldBindJSON(req)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	check := NewItem.SearchResultItem(converted)
-	if check == nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Result item not found",
-			"id":      converted,
-		})
-	} else {
-
-		NewItem.ChangeItems(converted, req)
-	}
-
-	ctx.Status(http.StatusNoContent)
-
+	ctx.JSON(http.StatusOK, gin.H{
+		"service_id": id,
+		"results":    results,
+	})
 }
 
-// SignIn Аутентификация и получение JWT токена
+// SignIn аутентификация пользователя
 // @Summary Аутентификация
 // @Tags auth
 // @Accept json
 // @Produce json
-// @Param input body register.LoginRequest true "Модель аутентификации"
+// @Param input body register.LoginRequest true "Данные для входа"
 // @Success 200 {object} map[string]string
 // @Failure 400 {string} string "Invalid request"
-// @Failure 401 {string} string "Invalid username or password"
+// @Failure 401 {string} string "Invalid credentials"
 // @Router /api/sign_in [post]
-func SignIn() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
+func (h *Handler) SignIn(ctx *gin.Context) {
+	config := conf.Load()
 
-		name := conf.Load().User
-		pass := conf.Load().Pass
-
-		var req register.LoginRequest
-		if err := ctx.ShouldBindJSON(&req); err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request"})
-			return
-		}
-
-		// Проверяем учетные данные из конфигурации
-		if req.Username != name || req.Password != pass {
-			ctx.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid username or password"})
-			return
-		}
-
-		token, err := Jwt.New().GenerateToken(req.Username)
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Could not generate token"})
-			return
-		}
-
-		ctx.JSON(http.StatusOK, gin.H{
-			"message": "Login successful",
-			"token":   token,
-		})
+	var req register.LoginRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
 	}
+
+	if req.Username != config.User || req.Password != config.Pass {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
+		return
+	}
+
+	token, err := Jwt.New().GenerateToken(req.Username)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate token"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Login successful",
+		"token":   token,
+	})
 }
 
-// // Register
-// // @Summary Регистрация
-// // @Tags auths
-// // @Accept			json
-// // @Produce		json
-// // @Param input body register.RegisterRequest true "Модель которую принимает метод"
-// // @Success 200 {string}  string "Registration successful"
-// // @Failure 400 {string} string "Invalid request"
-// // @Router /api/create_user [post]
-// func (h *Handler) Register() gin.HandlerFunc {
-// 	return func(ctx *gin.Context) {
-// 		var req register.RegisterRequest
+// HealthCheck проверка API
+// @Summary Проверка API
+// @Tags health
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Router /health [get]
+func (h *Handler) HealthCheck(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  "ok",
+		"message": "Service is running",
+	})
+}
 
-// 		if err := ctx.ShouldBindJSON(&req); err != nil {
-// 			ctx.JSON(http.StatusBadRequest, gin.H{"message": "Invalid request"})
-// 			return
-// 		}
+func httpcode(codesStr string) ([]int, error) {
+	if strings.TrimSpace(codesStr) == "" {
+		return nil, fmt.Errorf("response codes list cannot be empty")
+	}
 
-// 		// Проверка, что имя пользователя не существует
-// 		if _, exists := users[req.Username]; exists {
-// 			ctx.JSON(http.StatusConflict, gin.H{"message": "Username already exists"})
-// 			return
-// 		}
+	codes := make([]int, 0, len(strings.Split(codesStr, ",")))
 
-// 		// Регистрируем пользователя
-// 		users[req.Username] = req.Password
-// 		ctx.JSON(http.StatusOK, gin.H{"message": "Registration successful"})
-// 	}
-// }
+	for _, codeStr := range strings.Split(codesStr, ",") {
+		codeStr = strings.TrimSpace(codeStr)
+		if codeStr == "" {
+			continue
+		}
+
+		code, err := strconv.Atoi(codeStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid response code '%s': must be a number", codeStr)
+		}
+
+		if code < 100 || code > 599 {
+			return nil, fmt.Errorf("invalid HTTP status code %d", code)
+		}
+
+		codes = append(codes, code)
+	}
+
+	if len(codes) == 0 {
+		return nil, fmt.Errorf("no valid response codes provided")
+	}
+
+	return codes, nil
+}

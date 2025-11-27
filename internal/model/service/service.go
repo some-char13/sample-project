@@ -1,85 +1,50 @@
 package service
 
 import (
-	"fmt"
+	"errors"
+	"regexp"
 	"time"
+
+	"sample_project/internal/model/check"
 )
 
 type Service struct {
-	Id       int       `json:"id" binding:"required"`
+	ID       int       `json:"id"`
 	Name     string    `json:"name" binding:"required,min=3"`
-	Url      string    `json:"url" binding:"required"`
-	Interval int       `json:"interval" binding:"required"`
+	URL      string    `json:"url" binding:"required"`
+	Interval int       `json:"interval" binding:"required,min=10"`
 	Created  time.Time `json:"created"`
 }
 
-type ServiceRequest struct {
-	Id       int    `json:"id" binding:"required"`
+type Request struct {
 	Name     string `json:"name" binding:"required,min=3"`
-	Url      string `json:"url" binding:"required"`
-	Interval int    `json:"interval" binding:"required"`
+	URL      string `json:"url" binding:"required"`
+	Interval int    `json:"interval" binding:"required,min=10"`
 }
 
-func NewService(id int, name, url string, interval int) *Service {
+type Status struct {
+	Service   Service              `json:"service"`
+	LastCheck *check.ResultRequest `json:"lastCheck,omitempty"`
+}
+
+func NewService(name, url string, interval int) *Service {
 	return &Service{
-		Id:       id,
 		Name:     name,
-		Url:      url,
+		URL:      url,
 		Interval: interval,
 		Created:  time.Now().UTC(),
 	}
 }
 
-func (s *Service) String() string {
-	if s == nil {
-		return "nil"
-	}
-	return fmt.Sprintf(
-		"id: %d, name: %s, url: %s, interval: %d, created: %v", s.Id, s.Name, s.Url, s.Interval, s.Created,
-	)
-}
-
-func (s *Service) UnformString() string {
-	if s == nil {
-		return "nil"
+func (s *Request) Validate() error {
+	matched, _ := regexp.MatchString(`^https?://`, s.URL)
+	if !matched {
+		return errors.New("URL must start with http:// or https://")
 	}
 
-	return fmt.Sprintf("%d,%s,%s,%d,%s",
-		s.Id, s.Name, s.Url, s.Interval, s.Created)
+	if s.Interval < 10 {
+		return errors.New("interval must be at least 10 seconds")
+	}
+
+	return nil
 }
-
-// func (s *Service) GetServiceID() int {
-// 	return s.id
-// }
-
-// func (s *Service) GetServiceName() string {
-// 	return s.name
-// }
-
-// func (s *Service) GetServiceURL() string {
-// 	return s.url
-// }
-
-// func (s *Service) GetServiceInterval() int {
-// 	return s.interval
-// }
-
-// func (s *Service) ServiceCreatedAt() time.Time {
-// 	return s.created
-// }
-
-// func (s *Service) SetServiceID(id int) {
-// 	s.id = id
-// }
-
-// func (s *Service) SetServiceName(name string) {
-// 	s.name = name
-// }
-
-// func (s *Service) SetServiceURL(new_url string) {
-// 	s.url = new_url
-// }
-
-// func (s *Service) SetServiceInterval(seconds int) {
-// 	s.interval = seconds
-// }

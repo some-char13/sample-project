@@ -15,202 +15,33 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/result/item": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "result"
-                ],
-                "summary": "Создание  результата провреки",
-                "parameters": [
-                    {
-                        "description": "Модель результата провреки",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/check.ResultRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    },
-                    "400": {
-                        "description": "Result id already exists",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "invalid token",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/result/item/{id}": {
+        "/api/services": {
             "get": {
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "result"
+                    "services"
                 ],
-                "summary": "Поиск результата по ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID результата",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
+                "summary": "Получение списка сервисов",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/check.Result"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/sample_project_internal_model_service.Service"
+                            }
                         }
                     },
-                    "400": {
-                        "description": "Item not found",
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "type": "string"
                         }
                     }
                 }
             },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "result"
-                ],
-                "summary": "Изменение результата по ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID результата",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Модель результата",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/check.ResultRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    },
-                    "400": {
-                        "description": "Result item not found",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Invalid token",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "result"
-                ],
-                "summary": "Удаление результата по ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID результата",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    },
-                    "400": {
-                        "description": "Item not found",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Invalid token",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/result/items": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "result"
-                ],
-                "summary": "Получить список всех результатов",
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Item not found",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/service/item": {
             "post": {
                 "security": [
                     {
@@ -224,32 +55,41 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "service"
+                    "services"
                 ],
                 "summary": "Создание сервиса",
                 "parameters": [
                     {
-                        "description": "Модель сервиса",
+                        "description": "Данные сервиса",
                         "name": "input",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.ServiceRequest"
+                            "$ref": "#/definitions/service.Request"
                         }
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No Content"
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/sample_project_internal_model_service.Service"
+                        }
                     },
                     "400": {
-                        "description": "Service id already exists",
+                        "description": "Invalid request data",
                         "schema": {
                             "type": "string"
                         }
                     },
-                    "401": {
-                        "description": "invalid token",
+                    "409": {
+                        "description": "Service with this name already exists",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "type": "string"
                         }
@@ -257,104 +97,45 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/service/item/{id}": {
+        "/api/services/status": {
             "get": {
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "service"
+                    "services"
                 ],
-                "summary": "Поиск сервиса по ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID сервиса",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
+                "summary": "Получение статуса всех сервисов",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/service.Service"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/service.Status"
+                            }
                         }
                     },
-                    "400": {
-                        "description": "Item not found",
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "type": "string"
                         }
                     }
                 }
-            },
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "service"
-                ],
-                "summary": "Изменение сервиса по ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID сервиса",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Модель сервиса",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/service.ServiceRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    },
-                    "400": {
-                        "description": "Item not found",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Invalid token",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            },
+            }
+        },
+        "/api/services/{id}": {
             "delete": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "produces": [
-                    "application/json"
-                ],
                 "tags": [
-                    "service"
+                    "services"
                 ],
-                "summary": "Удаление сервиса по ID",
+                "summary": "Удаление сервиса",
                 "parameters": [
                     {
                         "type": "integer",
@@ -369,13 +150,19 @@ const docTemplate = `{
                         "description": "No Content"
                     },
                     "400": {
-                        "description": "Item not found",
+                        "description": "Invalid service ID",
                         "schema": {
                             "type": "string"
                         }
                     },
-                    "401": {
-                        "description": "Invalid token",
+                    "404": {
+                        "description": "Service not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "type": "string"
                         }
@@ -383,21 +170,104 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/service/items": {
+        "/api/services/{id}/results": {
             "get": {
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "service"
+                    "services"
                 ],
-                "summary": "Получить список всех сервисов",
+                "summary": "Получение истории проверок",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID сервиса",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Лимит результатов (по умолчанию 20)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/check.Result"
+                            }
+                        }
                     },
                     "400": {
-                        "description": "Item not found",
+                        "description": "Invalid service ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/services/{id}/results/filter": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "services"
+                ],
+                "summary": "Получение истории проверок по статусу",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID сервиса",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Список кодов ответов через запятую",
+                        "name": "respCodeList",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Лимит результатов (по умолчанию 20)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/check.Result"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid parameters",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "type": "string"
                         }
@@ -419,7 +289,7 @@ const docTemplate = `{
                 "summary": "Аутентификация",
                 "parameters": [
                     {
-                        "description": "Модель аутентификации",
+                        "description": "Данные для входа",
                         "name": "input",
                         "in": "body",
                         "required": true,
@@ -445,9 +315,31 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Invalid username or password",
+                        "description": "Invalid credentials",
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Проверка API",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -459,24 +351,24 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "id",
-                "resp_code",
-                "resp_duration",
-                "service_id"
+                "respCode",
+                "respDuration",
+                "serviceId"
             ],
             "properties": {
                 "id": {
                     "type": "integer"
                 },
-                "resp_code": {
+                "respCode": {
                     "type": "integer"
                 },
-                "resp_duration": {
+                "respDuration": {
                     "type": "integer"
                 },
-                "service_id": {
+                "serviceId": {
                     "type": "integer"
                 },
-                "time_cheched": {
+                "timeChecked": {
                     "type": "string"
                 }
             }
@@ -484,22 +376,21 @@ const docTemplate = `{
         "check.ResultRequest": {
             "type": "object",
             "required": [
-                "id",
-                "resp_code",
-                "resp_duration",
-                "service_id"
+                "respCode",
+                "respDuration",
+                "serviceId"
             ],
             "properties": {
-                "id": {
+                "lastCheck": {
+                    "type": "string"
+                },
+                "respCode": {
                     "type": "integer"
                 },
-                "resp_code": {
+                "respDuration": {
                     "type": "integer"
                 },
-                "resp_duration": {
-                    "type": "integer"
-                },
-                "service_id": {
+                "serviceId": {
                     "type": "integer"
                 }
             }
@@ -515,10 +406,9 @@ const docTemplate = `{
                 }
             }
         },
-        "service.Service": {
+        "sample_project_internal_model_service.Service": {
             "type": "object",
             "required": [
-                "id",
                 "interval",
                 "name",
                 "url"
@@ -531,7 +421,8 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "interval": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 10
                 },
                 "name": {
                     "type": "string",
@@ -542,20 +433,17 @@ const docTemplate = `{
                 }
             }
         },
-        "service.ServiceRequest": {
+        "service.Request": {
             "type": "object",
             "required": [
-                "id",
                 "interval",
                 "name",
                 "url"
             ],
             "properties": {
-                "id": {
-                    "type": "integer"
-                },
                 "interval": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 10
                 },
                 "name": {
                     "type": "string",
@@ -563,6 +451,17 @@ const docTemplate = `{
                 },
                 "url": {
                     "type": "string"
+                }
+            }
+        },
+        "service.Status": {
+            "type": "object",
+            "properties": {
+                "lastCheck": {
+                    "$ref": "#/definitions/check.ResultRequest"
+                },
+                "service": {
+                    "$ref": "#/definitions/sample_project_internal_model_service.Service"
                 }
             }
         }

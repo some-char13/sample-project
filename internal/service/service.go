@@ -2,170 +2,120 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+
 	"sample_project/internal/model/check"
 	"sample_project/internal/model/service"
 	"sample_project/internal/repository"
-	"time"
 )
 
-// func ProcessItems(c chan any, ctx context.Context) {
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			fmt.Println("Завершаем обработку")
-// 			return
-// 		case item := <-c:
-// 			repository.AddItem(item)
-// 		}
-// 	}
-// }
-
-// func ProcessItems(c chan any) {
-// 	item := <-c
-// 	repository.AddItem(item)
-// }
-
-// func ChangeItems(i int, c chan any) {
-// 	item := <-c
-// 	repository.ChangeItem(i, item)
-// }
-
-func ProcessItems(i any) {
-	repository.AddItem(i)
+type Service struct {
+	repo repository.Repository
 }
 
-func ChangeItems(i int, item any) {
-	repository.ChangeItem(i, item)
-}
-
-func GetServices() []*service.Service {
-	srv := repository.GetServices()
-	return srv
-}
-
-func GetResults() []*check.Result {
-	res := repository.GetResults()
-	return res
-}
-
-func SearchServiceItem(i int) *service.Service {
-	srv := repository.SearchItemService(i)
-	return srv
-}
-
-func SearchResultItem(i int) *check.Result {
-	//item := <-c
-	res := repository.SearchItemResult(i)
-	return res
-}
-
-func DeleteItemService(i int) {
-	//item := <-c
-	repository.DeleteItemService(i)
-}
-
-func DeleteItemResult(i int) {
-	//item := <-c
-	repository.DeleteItemResult(i)
-}
-
-var lenSrv int
-var lenRes int
-
-func SetCount(serviceCnt, resultCnt int) {
-	lenSrv = serviceCnt
-	lenRes = resultCnt
-}
-
-func LogItems(ctx context.Context) {
-	logTicker := time.NewTicker(200 * time.Millisecond)
-	defer logTicker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			fmt.Println("Завершаем логирование")
-			return
-		case <-logTicker.C:
-			newSrv := repository.GetServices()
-			if lenSrv < len(newSrv) {
-				printSrv := newSrv[lenSrv:]
-				for _, s := range printSrv {
-					fmt.Println(s)
-				}
-			}
-			lenSrv = len(newSrv)
-
-			newRes := repository.GetResults()
-			if lenRes < len(newRes) {
-				printRes := newRes[lenRes:]
-				for _, r := range printRes {
-					fmt.Println(r)
-				}
-			}
-			lenRes = len(newRes)
-		}
+func NewService(repo repository.Repository) *Service {
+	return &Service{
+		repo: repo,
 	}
 }
 
-// func ChangeItem(c chan any, ctx context.Context) {
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			fmt.Println("Завершаем обработку")
-// 			return
-// 		case item := <-c:
-// 			repository.ChangeItem(item)
-// 			fmt.Println("Отправили в AddItem")
-// 		}
-// 	}
-// }
+func (s *Service) CreateService(ctx context.Context, serviceReq *service.Request) (*service.Service, error) {
+	if err := serviceReq.Validate(); err != nil {
+		return nil, err
+	}
 
-// func ProcessItems(c chan repository.SrvID, ctx context.Context) {
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			fmt.Println("Завершаем обработку")
-// 			return
-// 		case item := <-c:
-// 			repository.AddItem(item)
-// 		}
-// 	}
-// }
+	existing, err := s.repo.GetServiceByName(ctx, serviceReq.Name)
+	if err != nil {
+		if !errors.Is(err, repository.ErrServiceNotFound) {
+			return nil, fmt.Errorf("failed to check service existence: %w", err)
+		}
+	} else if existing != nil {
+		return nil, fmt.Errorf("service with name '%s' already exists", serviceReq.Name)
+	}
 
-// var lenSrv int
-// var lenRes int
+	svc := service.NewService(serviceReq.Name, serviceReq.URL, serviceReq.Interval)
 
-// func LogItems(ctx context.Context) {
-// 	logTicker := time.NewTicker(200 * time.Millisecond)
-// 	defer logTicker.Stop()
+	createdSvc, err := s.repo.AddService(ctx, svc)
+	if err != nil {
+		return nil, err
+	}
 
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			fmt.Println("Завершаем логирование")
-// 			return
-// 		case <-logTicker.C:
+	return createdSvc, nil
+}
 
-// 			newSrv := repository.GetServices()
-// 			if lenSrv < len(newSrv) {
-// 				printSrv := newSrv[lenSrv:]
-// 				for _, s := range printSrv {
-// 					fmt.Println(s)
-// 				}
-// 			}
-// 			lenSrv = len(newSrv)
+func (s *Service) GetServices(ctx context.Context) ([]*service.Service, error) {
+	return s.repo.GetServices(ctx)
+}
 
-// 			newRes := repository.GetResults()
-// 			if lenRes < len(newRes) {
-// 				printRes := newRes[lenRes:]
-// 				for _, r := range printRes {
-// 					fmt.Println(r)
-// 				}
-// 			}
-// 			lenRes = len(newRes)
-// 		}
+func (s *Service) GetServiceByID(ctx context.Context, id int) (*service.Service, error) {
+	chk, err := s.repo.GetServiceByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrServiceNotFound) {
+			return nil, fmt.Errorf("service with id %d not found", id)
+		}
+		return nil, fmt.Errorf("database error: %w", err)
+	}
 
-// 	}
-// }
+	return chk, nil
+}
+
+func (s *Service) DeleteService(ctx context.Context, id int) error {
+	return s.repo.DeleteService(ctx, id)
+}
+
+func (s *Service) GetServiceResults(ctx context.Context, serviceID int, limit int) ([]*check.Result, error) {
+	return s.repo.GetCheckResults(ctx, serviceID, limit)
+}
+
+func (s *Service) GetServiceResultsByStatus(
+	ctx context.Context,
+	serviceID int,
+	respCodes []int,
+	limit int,
+) ([]*check.Result, error) {
+	return s.repo.GetCheckResultsByStatus(ctx, serviceID, respCodes, limit)
+}
+
+func (s *Service) GetServiceStatus(ctx context.Context, serviceID int) (*service.Status, error) {
+	svc, err := s.repo.GetServiceByID(ctx, serviceID)
+	if err != nil {
+		if errors.Is(err, repository.ErrServiceNotFound) {
+			return nil, fmt.Errorf("service with id %d not found", serviceID)
+		}
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+
+	latest, err := s.repo.GetLastServiceCheck(ctx, serviceID)
+	if err != nil {
+		if errors.Is(err, repository.ErrCheckNotFound) {
+			return nil, fmt.Errorf("check result for id %d not found", serviceID)
+		}
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+
+	status := &service.Status{
+		Service:   *svc,
+		LastCheck: latest,
+	}
+
+	return status, nil
+}
+
+func (s *Service) GetAllServicesStatus(ctx context.Context) ([]*service.Status, error) {
+	services, err := s.repo.GetServices(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	statuses := make([]*service.Status, 0, len(services))
+	for _, svc := range services {
+		status, err := s.GetServiceStatus(ctx, svc.ID)
+		if err != nil {
+			return nil, err
+		}
+		statuses = append(statuses, status)
+	}
+
+	return statuses, nil
+}
